@@ -5,6 +5,14 @@ import psycopg
 import credentials
 
 
+def isint(num):
+    try:
+        int(num)
+        return True
+    except:
+        return False
+
+
 def data_handle(df):
     # Converting NA
     replacement = {"Not Available": None}
@@ -54,13 +62,56 @@ def run_sql(df):
     print("Info about", num_rows_hospital_update, "hospitals are updated.")
 
     num_rows_rating = 0
+    invalid_rating_id = []
     with conn.transaction():
         for index, row in df.iterrows():
             try:
-                cur.execute("INSERT INTO Rating (day, rating, hospital)"
-                                "VALUES (CAST('{0}' AS DATE), {1}, '{2}')".format
-                                (row['quality_date'], row['Hospital overall rating'],
-                                row['Facility ID']))
+                if_invalid = False
+                rating_dict = {"day": row["quality_date"],
+                "rating": row['Hospital overall rating'],
+                "hospital": row['Facility ID']}
+
+                nonnull_dict = {}
+                for key in rating_dict.keys():
+                    if rating_dict[key] != None:
+                        nonnull_dict[key] = rating_dict[key]
+
+                # Check if the value is valid or not
+                # If the value is invalid, skip inserting this row
+                for key in nonnull_dict.keys():
+                    if key == "day":
+                        if type(nonnull_dict[key]) != datetime.date:
+                            invalid_rating_id.append(row['Facility ID'])
+                            if_invalid = True
+                            break
+                    elif key == "rating":
+                        if not isint(nonnull_dict[key]) or int(nonnull_dict[key]) <= 0:
+                            invalid_rating_id.append(row['Facility ID'])
+                            if_invalid = True
+                            break
+                if if_invalid:
+                    print("Row invalid, Facility ID:", row['Facility ID'])
+                    continue
+
+                # Insert valid rows
+                sql_col = ', '.join(nonnull_dict.keys())
+                sql_insert = "INSERT INTO Rating (" + sql_col + ") " +\
+                    "VALUES ("
+
+                for key in list(nonnull_dict.keys()):
+                    if key == "day":
+                        insert = "CAST('{}' AS DATE)".format(row['quality_date'])
+                    elif key == "hospital":
+                        insert = "'" + str(nonnull_dict[key]) + "'"
+                    else:
+                        insert = str(nonnull_dict[key])
+                    sql_insert += insert
+                    if key != list(nonnull_dict.keys())[-1]:
+                        sql_insert += ", "
+                    else:
+                        sql_insert += ")"
+                cur.execute(sql_insert)
+
             except Exception as e:
                 print("insert failed:", e)
             else:
@@ -70,6 +121,7 @@ def run_sql(df):
 
     conn.commit()
     conn.close()
+    return invalid_rating_id
 
 
 # Load data
@@ -82,4 +134,10 @@ df = data_handle(df)
 # Insert the date of the quality data
 df['quality_date'] = quality_date
 # SQL
-run_sql(df[:2])
+invalid_rating_id = run_sql(df[:2])
+# Save invalid rows to a separate CSV file
+invalid_rows = pd.DataFrame()
+for id in invalid_rating_id:
+    row = df[df["Facility ID"]==id]
+    invalid_rows = pd.concat([invalid_rows, row])
+invalid_rows.to_csv("Invalid Rows_quality.csv")
