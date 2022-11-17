@@ -2,6 +2,7 @@ import pandas as pd
 import sys
 import datetime
 import psycopg
+import credentials
 
 
 def data_handle(df):
@@ -14,9 +15,9 @@ def data_handle(df):
 def run_sql(df):
     conn = psycopg.connect(
         host="sculptor.stat.cmu.edu",
-        dbname="wu3",
-        user="wu3",
-        password="Beshiez8o"
+        dbname=credentials.DB_USER,
+        user=credentials.DB_USER,
+        password=credentials.DB_PASSWORD
     )
     cur = conn.cursor()
 
