@@ -4,6 +4,22 @@ import psycopg
 import credentials
 
 
+def isfloat(num):
+    try:
+        float(num)
+        return True
+    except:
+        return False
+
+
+def isint(num):
+    try:
+        int(num)
+        return True
+    except:
+        return False
+
+
 def data_handle(df):
     # Converting NA
     replacement = {-999999: None}
@@ -22,6 +38,7 @@ def data_handle(df):
                                             inplace=True)
     df['longitude'].replace("NA", None, inplace=True)
     df['latitude'].replace("NA", None, inplace=True)
+    df = df.where(pd.notnull(df), None)
     return df
 
 
@@ -35,33 +52,76 @@ def run_sql(df):
     )
     cur = conn.cursor()
 
+    invalid_hospital_id = []
     num_rows_hospital_insert = 0
     num_rows_hospital_update = 0
     with conn.transaction():
         for index, row in df.iterrows():
+            if_invalid = False
+            hospital_dict = {'hospital_pk': row['hospital_pk'], 'hospital_name': row['hospital_name'],
+            'longitude': row['longitude'], 'latitude': row['latitude'], 'address': row['address'],
+            'city': row['city'], 'fips_code': row['fips_code'], 'zip': row['zip']}
+            nonnull_hospital = {}
+            for key in hospital_dict.keys():
+                if hospital_dict[key] != None:
+                    nonnull_hospital[key] = hospital_dict[key]
+            
+            # Check if the values are valid
+            for key in nonnull_hospital.keys():
+                if key == 'longitude':
+                    if not isfloat(nonnull_hospital[key]) or\
+                    float(nonnull_hospital[key]) <= -180 or float(nonnull_hospital[key]) >= 180:
+                        invalid_hospital_id.append(row["hospital_pk"])
+                        if_invalid = True
+                        break
+                elif key == 'latitude':
+                    if not isfloat(nonnull_hospital[key]) or\
+                    float(nonnull_hospital[key]) <= -90 or float(nonnull_hospital[key]) >= 90:
+                        invalid_hospital_id.append(row["hospital_pk"])
+                        if_invalid = True
+                        break
+                elif key == "zip":
+                    if not isint(nonnull_hospital[key]):
+                        invalid_hospital_id.append(row["hospital_pk"])
+                        if_invalid = True
+                        break
+            
+            if if_invalid:
+                print("Row invalid, hospital_pk:", row['hospital_pk'])
+                continue
+                
             try:
-                cur.execute("INSERT INTO Hospital (hospital_pk, hospital_name,\
-                            longitude, latitude, address, city, fips_code, zip)"
-                                "VALUES ('{}', '{}', {}, {}, '{}', '{}', '{}', {})".format
-                                    (row['hospital_pk'], row['hospital_name'],
-                                    row['longitude'], row['latitude'],
-                                    row['address'], row['city'],
-                                    row['fips_code'], row['zip']))
+                insert_col = ', '.join(nonnull_hospital.keys())
+                hospital_insert = "INSERT INTO Hospital (" + insert_col + ")" +\
+                    "VALUES ("
+                for key in list(nonnull_hospital.keys()):
+                    if key in ["hospital_pk", "hospital_name", "address", "city", "fips_code"]:
+                        key_insert = "'" + str(nonnull_hospital[key]) + "'"
+                    else:
+                        key_insert = str(nonnull_hospital[key])
+                    hospital_insert += key_insert
+                    if key != list(nonnull_hospital.keys())[-1]:
+                        hospital_insert += ", "
+                    else:
+                        hospital_insert += ")"
+                cur.execute(hospital_insert)
             except Exception as e:
                 try:
-                    cur.execute("UPDATE Hospital"
-                                    "SET hospital_name = '{0}',\
-                                    longitude = {1},\
-                                    latitude = {2},\
-                                    address = '{3}',\
-                                    city = '{4}',\
-                                    fips_code = '{5}',\
-                                    zip = '{6}'"
-                                    "WHERE hospital_pk = '{7}'".format
-                                    (row['hospital_name'], row['longitude'],
-                                        row['latitude'], row['address'],
-                                        row['city'], row['fips_code'],
-                                        row['zip'], row['hospital_pk']))
+                    hospital_update = "UPDATE Hospital SET "
+                    for key in list(nonnull_hospital.keys()):
+                        if key in ["hospital_name", "address", "city", "fips_code"]:
+                            key_update = key + " = '" + str(nonnull_hospital[key]) + "'"
+                        elif key != "hospital_pk":
+                            key_update = key + " = " + str(nonnull_hospital[key])
+                        else:
+                            key_update = ""
+                        hospital_update += key_update
+                        if key != list(nonnull_hospital.keys())[-1] and key != "hospital_pk":
+                            hospital_update += ", "
+                        if key == "hospital_pk":
+                            pk_update = " WHERE hospital_pk = '" + str(nonnull_hospital[key]) + "'"
+                    hospital_update += pk_update
+                    cur.execute(hospital_update)
                 except Exception as e:
                     print("insert and update failed:", e)
                 else:
@@ -71,38 +131,54 @@ def run_sql(df):
     print("Info about", num_rows_hospital_insert, "hospitals are inserted.")
     print("Info about", num_rows_hospital_update, "hospitals are updated.")
 
+    invalid_beds_id = []
     num_rows_beds = 0
     with conn.transaction():
         for index, row in df.iterrows():
+            if_invalid = False
             try:
-                cur.execute("INSERT INTO Hospital_beds\
-                        (all_adult_hospital_beds_7_day_avg,\
-                        all_pediatric_inpatient_beds_7_day_avg,\
-                        all_adult_hospital_inpatient_bed_occupied_7_day_coverage,\
-                        all_pediatric_inpatient_bed_occupied_7_day_avg,\
-                        total_icu_beds_7_day_avg,\
-                        icu_beds_used_7_day_avg,\
-                        inpatient_beds_used_covid_7_day_avg,\
-                        staffed_adult_icu_patients_confirmed_covid_7_day_avg,\
-                        hospital)"
-                                "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, '{}')"\
-                                .format(row['all_adult_hospital_beds_7_day_avg'],
-                                row['all_pediatric_inpatient_beds_7_day_avg'],
-                                row['all_adult_hospital_inpatient_bed_occupied_7_day_coverage'],
-                                row['all_pediatric_inpatient_bed_occupied_7_day_avg'],
-                                row['total_icu_beds_7_day_avg'],
-                                row['icu_beds_used_7_day_avg'],
-                                row['inpatient_beds_used_covid_7_day_avg'],
-                                row['staffed_icu_adult_patients_confirmed_covid_7_day_avg'],
-                                row['hospital_pk']))
+                beds_dict = {'all_adult_hospital_beds_7_day_avg': row['all_adult_hospital_beds_7_day_avg'],
+                'all_pediatric_inpatient_beds_7_day_avg': row['all_pediatric_inpatient_beds_7_day_avg'],
+                'all_adult_hospital_inpatient_bed_occupied_7_day_coverage': row['all_adult_hospital_inpatient_bed_occupied_7_day_coverage'],
+                'all_pediatric_inpatient_bed_occupied_7_day_avg': row['all_pediatric_inpatient_bed_occupied_7_day_avg'],
+                'total_icu_beds_7_day_avg': row['total_icu_beds_7_day_avg'],
+                'icu_beds_used_7_day_avg': row['icu_beds_used_7_day_avg'],
+                'inpatient_beds_used_covid_7_day_avg': row['inpatient_beds_used_covid_7_day_avg'],
+                'staffed_adult_icu_patients_confirmed_covid_7_day_avg': row['staffed_icu_adult_patients_confirmed_covid_7_day_avg']}
+
+                # Collect non-null values
+                nonnull_dict = {}
+                for key in beds_dict.keys():
+                    if beds_dict[key] != None:
+                        nonnull_dict[key] = beds_dict[key]
+
+                # Check if the value is valid or not
+                # If the value is invalid, skip inserting this row
+                for value in nonnull_dict.values():
+                    if not isfloat(value):
+                        invalid_beds_id.append(row['hospital_pk'])
+                        if_invalid = True
+                        break
+                if if_invalid:
+                    print("Row invalid, hospital_pk:", row['hospital_pk'])
+                    continue
+
+                # Insert valid rows
+                sql_col = ', '.join(nonnull_dict.keys())
+                sql_value_str = map(str, nonnull_dict.values())
+                sql_value = ', '.join(sql_value_str)
+                sql_insert = "INSERT INTO Hospital_beds (" + sql_col + ", hospital)" +\
+                    "VALUES (" + sql_value + ", '{}')".format(row['hospital_pk'])
+                cur.execute(sql_insert)
             except Exception as e:
                 print("insert failed:", e)
+                invalid_beds_id.append(row['hospital_pk'])
             else:
                 num_rows_beds += 1
     print("Info about", num_rows_beds, "hospital beds are inserted.")
-
     conn.commit()
     conn.close()
+    return invalid_hospital_id, invalid_beds_id
 
 
 # Load data
@@ -110,4 +186,13 @@ path_name = sys.argv[1]
 df = pd.read_csv(path_name)
 df = data_handle(df)
 # SQL
-run_sql(df[1:10])
+invalid_hospital_id, invalid_beds_id = run_sql(df)
+# Save invalid rows to a separate CSV file
+invalid_rows = pd.DataFrame()
+for id in invalid_hospital_id:
+    row = df[df["hospital_pk"]==id]
+    invalid_rows = pd.concat([invalid_rows, row])
+for id in invalid_beds_id:
+    row = df[df["hospital_pk"]==id]
+    invalid_rows = pd.concat([invalid_rows, row])
+invalid_rows.to_csv("Invalid Rows_hhs.csv")
