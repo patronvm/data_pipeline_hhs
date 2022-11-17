@@ -1,6 +1,7 @@
 import pandas as pd
 import sys
 import psycopg
+import credentials
 
 
 def data_handle(df):
@@ -28,9 +29,9 @@ def run_sql(df):
     # Connect
     conn = psycopg.connect(
         host="sculptor.stat.cmu.edu",
-        dbname="wu3",
-        user="wu3",
-        password="Beshiez8o"
+        dbname=credentials.DB_USER,
+        user=credentials.DB_USER,
+        password=credentials.DB_PASSWORD
     )
     cur = conn.cursor()
 
@@ -41,8 +42,8 @@ def run_sql(df):
             try:
                 cur.execute("INSERT INTO Hospital (hospital_pk, hospital_name,\
                             longitude, latitude, address, city, fips_code, zip)"
-                                "VALUES ('{0}', '{1}', {2}, {3}, '{4}', '{5}', '{6}', '{7}')"\
-                                    .format(row['hospital_pk'], row['hospital_name'],
+                                "VALUES ('{}', '{}', {}, {}, '{}', '{}', '{}', {})".format
+                                    (row['hospital_pk'], row['hospital_name'],
                                     row['longitude'], row['latitude'],
                                     row['address'], row['city'],
                                     row['fips_code'], row['zip']))
