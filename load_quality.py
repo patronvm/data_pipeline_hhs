@@ -20,6 +20,8 @@ def run_sql(df):
     )
     cur = conn.cursor()
 
+    num_rows_hospital_insert = 0
+    num_rows_hospital_update = 0
     with conn.transaction():
         for index, row in df.iterrows():
             try:
@@ -43,7 +45,14 @@ def run_sql(df):
                                         row['State'], row['Facility ID']))
                 except Exception as e:
                     print("insert and update failed:", e)
+                else:
+                    num_rows_hospital_update += 1
+            else:
+                num_rows_hospital_insert += 1
+    print("Info about", num_rows_hospital_insert, "hospitals are inserted.")
+    print("Info about", num_rows_hospital_update, "hospitals are updated.")
 
+    num_rows_rating = 0
     with conn.transaction():
         for index, row in df.iterrows():
             try:
@@ -53,6 +62,10 @@ def run_sql(df):
                                 row['Facility ID']))
             except Exception as e:
                 print("insert failed:", e)
+            else:
+                num_rows_rating += 1
+    print(num_rows_rating, "rating info are inserted.")
+
 
     conn.commit()
     conn.close()
