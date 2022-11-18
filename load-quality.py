@@ -34,17 +34,19 @@ def run_sql(df):
     with conn.transaction():
         for index, row in df.iterrows():
             try:
-                cur.execute("INSERT INTO Hospital (hospital_pk,\
-                             type, ownership, emergency_services,\
-                             county_name, state)"
-                            "VALUES ('{0}', '{1}', '{2}',\
-                            '{3}', '{4}', '{5}')".format
-                            (row['Facility ID'],
-                             row['Hospital Type'],
-                             row['Hospital Ownership'],
-                             row['Emergency Services'],
-                             row['County Name'],
-                             row['State']))
+                cur.execute("SAVEPOINT save1")
+                with conn.transaction():
+                    cur.execute("INSERT INTO Hospital (hospital_pk,\
+                                type, ownership, emergency_services,\
+                                county_name, state)"
+                                "VALUES ('{0}', '{1}', '{2}',\
+                                '{3}', '{4}', '{5}')".format
+                                (row['Facility ID'],
+                                 row['Hospital Type'],
+                                 row['Hospital Ownership'],
+                                 row['Emergency Services'],
+                                 row['County Name'],
+                                 row['State']))
             except Exception:
                 try:
                     cur.execute("UPDATE Hospital "
@@ -74,6 +76,8 @@ def run_sql(df):
     with conn.transaction():
         for index, row in df.iterrows():
             try:
+                cur.execute("SAVEPOINT save2")
+
                 if_invalid = False
                 rating_dict = {"day": row["quality_date"],
                                "rating": row['Hospital overall rating'],
@@ -101,26 +105,26 @@ def run_sql(df):
                 if if_invalid:
                     print("Row invalid, Facility ID:", row['Facility ID'])
                     continue
+                with conn.transaction():
+                    # Insert valid rows
+                    sql_col = ', '.join(nonnull_dict.keys())
+                    sql_insert = "INSERT INTO Rating (" + sql_col + ") " +\
+                        "VALUES ("
 
-                # Insert valid rows
-                sql_col = ', '.join(nonnull_dict.keys())
-                sql_insert = "INSERT INTO Rating (" + sql_col + ") " +\
-                    "VALUES ("
-
-                for key in list(nonnull_dict.keys()):
-                    if key == "day":
-                        insert = "CAST('{}' AS DATE)".format(
-                                  row['quality_date'])
-                    elif key == "hospital":
-                        insert = "'" + str(nonnull_dict[key]) + "'"
-                    else:
-                        insert = str(nonnull_dict[key])
-                    sql_insert += insert
-                    if key != list(nonnull_dict.keys())[-1]:
-                        sql_insert += ", "
-                    else:
-                        sql_insert += ")"
-                cur.execute(sql_insert)
+                    for key in list(nonnull_dict.keys()):
+                        if key == "day":
+                            insert = "CAST('{}' AS DATE)".format(
+                                    row['quality_date'])
+                        elif key == "hospital":
+                            insert = "'" + str(nonnull_dict[key]) + "'"
+                        else:
+                            insert = str(nonnull_dict[key])
+                        sql_insert += insert
+                        if key != list(nonnull_dict.keys())[-1]:
+                            sql_insert += ", "
+                        else:
+                            sql_insert += ")"
+                    cur.execute(sql_insert)
 
             except Exception as e:
                 print("insert failed:", e)
@@ -150,4 +154,7 @@ for id in invalid_rating_id:
     row = df[df["Facility ID"] == id]
     invalid_rows = pd.concat([invalid_rows, row])
 
-invalid_rows.to_csv("invalid_rows_quality.csv")
+print(invalid_rating_id)
+print(invalid_rows)
+
+# invalid_rows.to_csv("invalid_rows_quality.csv")
