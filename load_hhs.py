@@ -96,7 +96,7 @@ def run_sql(df):
                     "VALUES ("
                 for key in list(nonnull_hospital.keys()):
                     if key in ["hospital_pk", "hospital_name", "address", "city", "fips_code"]:
-                        if key in ["hospital_name", "address"] and "'" in nonnull_hospital[key]:
+                        if key in ["hospital_name", "address", "city"] and "'" in nonnull_hospital[key]:
                             name = nonnull_hospital[key]
                             nonnull_hospital[key] = name.split("'")[0] + "''" + name.split("'")[1]
 
@@ -118,7 +118,7 @@ def run_sql(df):
                     for key in list(nonnull_hospital.keys()):
                         if key in ["city", "fips_code"]:
                             key_update = key + " = '" + str(nonnull_hospital[key]) + "'"
-                        elif key in ["hospital_name", "address"]:
+                        elif key in ["hospital_name", "address", "city"]:
                             if "'" in nonnull_hospital[key]:
                                 name = nonnull_hospital[key]
                                 nonnull_hospital[key] = name.split("'")[0] + "''" + name.split("'")[1]
