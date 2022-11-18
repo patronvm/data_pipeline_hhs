@@ -134,7 +134,7 @@ df = data_handle(df)
 # Insert the date of the quality data
 df['quality_date'] = quality_date
 # SQL
-invalid_rating_id = run_sql(df[:2])
+invalid_rating_id = run_sql(df)
 # Save invalid rows to a separate CSV file
 invalid_rows = pd.DataFrame()
 for id in invalid_rating_id:
