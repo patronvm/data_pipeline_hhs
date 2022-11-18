@@ -9,7 +9,7 @@ def isint(num):
     try:
         int(num)
         return True
-    except:
+    except (ValueError, TypeError):
         return False
 
 
@@ -35,23 +35,31 @@ def run_sql(df):
         for index, row in df.iterrows():
             try:
                 cur.execute("INSERT INTO Hospital (hospital_pk,\
-                        type, ownership, emergency_services, county_name, state)"
-                                "VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')".format
-                                (row['Facility ID'], row['Hospital Type'],
-                                row['Hospital Ownership'], row['Emergency Services'],
-                                row['County Name'], row['State']))
+                             type, ownership, emergency_services,\
+                             county_name, state)"
+                            "VALUES ('{0}', '{1}', '{2}',\
+                            '{3}', '{4}', '{5}')".format
+                            (row['Facility ID'],
+                             row['Hospital Type'],
+                             row['Hospital Ownership'],
+                             row['Emergency Services'],
+                             row['County Name'],
+                             row['State']))
             except Exception:
                 try:
                     cur.execute("UPDATE Hospital "
-                                    "SET type = '{0}',\
-                                    ownership = '{1}',\
-                                    emergency_services = '{2}',\
-                                    county_name = '{3}',\
-                                    state = '{4}'"
-                                    "WHERE hospital_pk = '{5}'".format
-                                    (row['Hospital Type'], row['Hospital Ownership'],
-                                        row['Emergency Services'], row['County Name'],
-                                        row['State'], row['Facility ID']))
+                                "SET type = '{0}',\
+                                 ownership = '{1}',\
+                                 emergency_services = '{2}',\
+                                 county_name = '{3}',\
+                                 state = '{4}'"
+                                "WHERE hospital_pk = '{5}'".format
+                                (row['Hospital Type'],
+                                 row['Hospital Ownership'],
+                                 row['Emergency Services'],
+                                 row['County Name'],
+                                 row['State'],
+                                 row['Facility ID']))
                 except Exception as e:
                     print("insert and update failed:", e)
                 else:
@@ -68,12 +76,12 @@ def run_sql(df):
             try:
                 if_invalid = False
                 rating_dict = {"day": row["quality_date"],
-                "rating": row['Hospital overall rating'],
-                "hospital": row['Facility ID']}
+                               "rating": row['Hospital overall rating'],
+                               "hospital": row['Facility ID']}
 
                 nonnull_dict = {}
                 for key in rating_dict.keys():
-                    if rating_dict[key] != None:
+                    if rating_dict[key] is not None:
                         nonnull_dict[key] = rating_dict[key]
 
                 # Check if the value is valid or not
@@ -85,7 +93,8 @@ def run_sql(df):
                             if_invalid = True
                             break
                     elif key == "rating":
-                        if not isint(nonnull_dict[key]) or int(nonnull_dict[key]) <= 0:
+                        if not isint(nonnull_dict[key]) or\
+                               int(nonnull_dict[key]) <= 0:
                             invalid_rating_id.append(row['Facility ID'])
                             if_invalid = True
                             break
@@ -100,7 +109,8 @@ def run_sql(df):
 
                 for key in list(nonnull_dict.keys()):
                     if key == "day":
-                        insert = "CAST('{}' AS DATE)".format(row['quality_date'])
+                        insert = "CAST('{}' AS DATE)".format(
+                                  row['quality_date'])
                     elif key == "hospital":
                         insert = "'" + str(nonnull_dict[key]) + "'"
                     else:
@@ -117,7 +127,6 @@ def run_sql(df):
             else:
                 num_rows_rating += 1
     print(num_rows_rating, "rating info are inserted.")
-
 
     conn.commit()
     conn.close()
@@ -138,6 +147,7 @@ invalid_rating_id = run_sql(df)
 # Save invalid rows to a separate CSV file
 invalid_rows = pd.DataFrame()
 for id in invalid_rating_id:
-    row = df[df["Facility ID"]==id]
+    row = df[df["Facility ID"] == id]
     invalid_rows = pd.concat([invalid_rows, row])
+
 invalid_rows.to_csv("Invalid Rows_quality.csv")
