@@ -8,7 +8,7 @@ def isfloat(num):
     try:
         float(num)
         return True
-    except:
+    except (ValueError, TypeError):
         return False
 
 
@@ -16,7 +16,7 @@ def isint(num):
     try:
         int(num)
         return True
-    except:
+    except (ValueError, TypeError):
         return False
 
 
@@ -58,25 +58,32 @@ def run_sql(df):
     with conn.transaction():
         for index, row in df.iterrows():
             if_invalid = False
-            hospital_dict = {'hospital_pk': row['hospital_pk'], 'hospital_name': row['hospital_name'],
-            'longitude': row['longitude'], 'latitude': row['latitude'], 'address': row['address'],
-            'city': row['city'], 'fips_code': row['fips_code'], 'zip': row['zip']}
+            hospital_dict = {'hospital_pk': row['hospital_pk'],
+                             'hospital_name': row['hospital_name'],
+                             'longitude': row['longitude'],
+                             'latitude': row['latitude'],
+                             'address': row['address'],
+                             'city': row['city'],
+                             'fips_code': row['fips_code'],
+                             'zip': row['zip']}
             nonnull_hospital = {}
             for key in hospital_dict.keys():
-                if hospital_dict[key] != None:
+                if hospital_dict[key] is not None:
                     nonnull_hospital[key] = hospital_dict[key]
-            
+
             # Check if the values are valid
             for key in nonnull_hospital.keys():
                 if key == 'longitude':
                     if not isfloat(nonnull_hospital[key]) or\
-                    float(nonnull_hospital[key]) <= -180 or float(nonnull_hospital[key]) >= 180:
+                            float(nonnull_hospital[key]) <= -180 or\
+                            float(nonnull_hospital[key]) >= 180:
                         invalid_hospital_id.append(row["hospital_pk"])
                         if_invalid = True
                         break
                 elif key == 'latitude':
                     if not isfloat(nonnull_hospital[key]) or\
-                    float(nonnull_hospital[key]) <= -90 or float(nonnull_hospital[key]) >= 90:
+                            float(nonnull_hospital[key]) <= -90 or\
+                            float(nonnull_hospital[key]) >= 90:
                         invalid_hospital_id.append(row["hospital_pk"])
                         if_invalid = True
                         break
@@ -85,23 +92,27 @@ def run_sql(df):
                         invalid_hospital_id.append(row["hospital_pk"])
                         if_invalid = True
                         break
-            
+
             if if_invalid:
                 print("Row invalid, hospital_pk:", row['hospital_pk'])
                 continue
-                
+
             try:
                 insert_col = ', '.join(nonnull_hospital.keys())
-                hospital_insert = "INSERT INTO Hospital (" + insert_col + ")" +\
-                    "VALUES ("
+                hospital_insert = "INSERT INTO Hospital (" +\
+                                  insert_col + ")" +\
+                                  "VALUES ("
                 for key in list(nonnull_hospital.keys()):
-                    if key in ["hospital_pk", "hospital_name", "address", "city", "fips_code"]:
-                        if key in ["hospital_name", "address", "city"] and "'" in nonnull_hospital[key]:
+                    if key in ["hospital_pk", "hospital_name",
+                               "address", "city", "fips_code"]:
+                        if key in ["hospital_name",
+                                   "address", "city"] and\
+                                   "'" in nonnull_hospital[key]:
                             name = nonnull_hospital[key]
-                            nonnull_hospital[key] = name.split("'")[0] + "''" + name.split("'")[1]
+                            nonnull_hospital[key] = name.split("'")[0] +\
+                                "''" + name.split("'")[1]
 
                         key_insert = "'" + str(nonnull_hospital[key]) + "'"
-                        
 
                     else:
                         key_insert = str(nonnull_hospital[key])
@@ -110,18 +121,19 @@ def run_sql(df):
                         hospital_insert += ", "
                     else:
                         hospital_insert += ")"
-                #print(hospital_insert)
                 cur.execute(hospital_insert)
-            except Exception as e:
+            except Exception:
                 try:
                     hospital_update = "UPDATE Hospital SET "
                     for key in list(nonnull_hospital.keys()):
                         if key in ["city", "fips_code"]:
-                            key_update = key + " = '" + str(nonnull_hospital[key]) + "'"
+                            key_update = key + " = '" +\
+                                         str(nonnull_hospital[key]) + "'"
                         elif key in ["hospital_name", "address", "city"]:
                             if "'" in nonnull_hospital[key]:
                                 name = nonnull_hospital[key]
-                                nonnull_hospital[key] = name.split("'")[0] + "''" + name.split("'")[1]
+                                nonnull_hospital[key] = name.split("'")[0] +\
+                                                         "''" + name.split("'")[1]
                                 key_update = key + " = '" + str(nonnull_hospital[key]) + "'"
                             else:
                                 key_update = key + " = '" + str(nonnull_hospital[key]) + "'"
