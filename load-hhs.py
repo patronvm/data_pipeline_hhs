@@ -5,6 +5,7 @@ import credentials
 
 
 def isfloat(num):
+    """Justify if the given number is a float"""
     try:
         float(num)
         return True
@@ -13,6 +14,8 @@ def isfloat(num):
 
 
 def isint(num):
+    """Justify if the given number is an integer"""
+
     try:
         int(num)
         return True
@@ -43,7 +46,10 @@ def data_handle(df):
 
 
 def run_sql(df):
-    # Connect
+    """Run SQL inseration and update and returns invalid row id
+    """
+
+    # Connects to the database with given credentials info
     conn = psycopg.connect(
         host="sculptor.stat.cmu.edu",
         dbname=credentials.DB_USER,
@@ -236,7 +242,7 @@ path_name = sys.argv[1]
 df = pd.read_csv(path_name)
 df = data_handle(df)
 # SQL
-invalid_hospital_id, invalid_beds_id = run_sql(df[1:201])
+invalid_hospital_id, invalid_beds_id = run_sql(df)
 # Save invalid rows to a separate CSV file
 invalid_rows = pd.DataFrame()
 for id in invalid_hospital_id:
@@ -246,5 +252,4 @@ for id in invalid_beds_id:
     row = df[df["hospital_pk"] == id]
     invalid_rows = pd.concat([invalid_rows, row])
 
-print(invalid_rows)
-# invalid_rows.to_csv("invalid_rows_hhs.csv")
+invalid_rows.to_csv("invalid_rows_hhs.csv")

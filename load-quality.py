@@ -6,6 +6,8 @@ import credentials
 
 
 def isint(num):
+    """Justify if the inputs is an integer"""
+
     try:
         int(num)
         return True
@@ -14,6 +16,8 @@ def isint(num):
 
 
 def data_handle(df):
+    """Clean the data"""
+
     # Converting NA
     replacement = {"Not Available": None}
     df.replace(replacement, inplace=True)
@@ -21,6 +25,10 @@ def data_handle(df):
 
 
 def run_sql(df):
+    """Run SQL inseration and update and returns invalid row id
+    """
+
+    # Connects to the database with given credentials info
     conn = psycopg.connect(
         host="sculptor.stat.cmu.edu",
         dbname=credentials.DB_USER,
