@@ -96,7 +96,13 @@ def run_sql(df):
                     "VALUES ("
                 for key in list(nonnull_hospital.keys()):
                     if key in ["hospital_pk", "hospital_name", "address", "city", "fips_code"]:
+                        if key in ["hospital_name", "address"] and "'" in nonnull_hospital[key]:
+                            name = nonnull_hospital[key]
+                            nonnull_hospital[key] = name.split("'")[0] + "''" + name.split("'")[1]
+
                         key_insert = "'" + str(nonnull_hospital[key]) + "'"
+                        
+
                     else:
                         key_insert = str(nonnull_hospital[key])
                     hospital_insert += key_insert
@@ -104,13 +110,21 @@ def run_sql(df):
                         hospital_insert += ", "
                     else:
                         hospital_insert += ")"
+                #print(hospital_insert)
                 cur.execute(hospital_insert)
             except Exception as e:
                 try:
                     hospital_update = "UPDATE Hospital SET "
                     for key in list(nonnull_hospital.keys()):
-                        if key in ["hospital_name", "address", "city", "fips_code"]:
+                        if key in ["city", "fips_code"]:
                             key_update = key + " = '" + str(nonnull_hospital[key]) + "'"
+                        elif key in ["hospital_name", "address"]:
+                            if "'" in nonnull_hospital[key]:
+                                name = nonnull_hospital[key]
+                                nonnull_hospital[key] = name.split("'")[0] + "''" + name.split("'")[1]
+                                key_update = key + " = '" + str(nonnull_hospital[key]) + "'"
+                            else:
+                                key_update = key + " = '" + str(nonnull_hospital[key]) + "'"
                         elif key != "hospital_pk":
                             key_update = key + " = " + str(nonnull_hospital[key])
                         else:
