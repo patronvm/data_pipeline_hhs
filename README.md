@@ -15,7 +15,7 @@ to be updated regularly by a given date. The third table is called Hospital_Beds
 contain 7 day averages of information such as bed status, employees, and occupancy. This
 will reference the hospital id. 
 
-load_hhs.py:
+load-hhs.py:
 
 This file first cleans some general information from the data prior to
 insertion and updating values, such as the default "NULL" as "-9999". It also
@@ -26,7 +26,7 @@ created, for a user to update themselves before updating/inserting again.
 The command line argument for this file is the data to insert and update. This file
 has try except capabilites, and the transaction will work over the whole dataset.
 
-load_quality.py:
+load-quality.py:
 
 This file is similarly structured to the load_hhs.py file, with a data handle,
 and run sql functions. The command line arguement is also for the data for insertion. 
