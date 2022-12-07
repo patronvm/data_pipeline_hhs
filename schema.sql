@@ -43,6 +43,7 @@ CREATE TABLE Rating (
 /*The Hospital_beds table contains information about hospital bed
 status. They are updated with weekly information*/
 CREATE TABLE Hospital_beds (
+	collection_week DATE,
 	all_adult_hospital_beds_7_day_avg FLOAT, 
 	all_pediatric_inpatient_beds_7_day_avg FLOAT,
 	all_adult_hospital_inpatient_bed_occupied_7_day_coverage FLOAT,
@@ -51,6 +52,7 @@ CREATE TABLE Hospital_beds (
 	icu_beds_used_7_day_avg FLOAT,
 	inpatient_beds_used_covid_7_day_avg FLOAT,
 	staffed_adult_icu_patients_confirmed_covid_7_day_avg FLOAT,
-	hospital VARCHAR REFERENCES Hospital
+	hospital VARCHAR REFERENCES Hospital,
+	PRIMARY KEY (hospital, collection_week)
 );
 
