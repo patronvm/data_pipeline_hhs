@@ -64,6 +64,7 @@ def run_sql(df):
     invalid_hospital_id = []
     num_rows_hospital_insert = 0
     num_rows_hospital_update = 0
+    insert_id = []
     with conn.transaction():
         for index, row in df.iterrows():
             if_invalid = False
@@ -105,117 +106,127 @@ def run_sql(df):
             if if_invalid:
                 print("Row invalid, hospital_pk:", row['hospital_pk'])
                 continue
-
             try:
-                insert_col = ', '.join(nonnull_hospital.keys())
-                hospital_insert = "INSERT INTO Hospital (" +\
-                                  insert_col + ")" +\
-                                  "VALUES ("
-                for key in list(nonnull_hospital.keys()):
-                    if key in ["hospital_pk", "hospital_name",
-                               "address", "city", "fips_code"]:
-                        if key in ["hospital_name",
-                                   "address", "city"] and\
-                                   "'" in nonnull_hospital[key]:
-                            name = nonnull_hospital[key]
-                            nonnull_hospital[key] = name.split("'")[0] +\
-                                "''" + name.split("'")[1]
-
-                        key_insert = "'" + str(nonnull_hospital[key]) + "'"
-
-                    else:
-                        key_insert = str(nonnull_hospital[key])
-                    hospital_insert += key_insert
-                    if key != list(nonnull_hospital.keys())[-1]:
-                        hospital_insert += ", "
-                    else:
-                        hospital_insert += ");"
-                cur.execute(hospital_insert)
+                select_sql = "SELECT COUNT(*) FROM Hospital WHERE hospital_pk = '{}'".format(row['hospital_pk'])
+                cur.execute(select_sql)
+                for r in cur:
+                    pk_exist = r
+                r = cur.fetchone()
+                pk_num = pk_exist[0]
             except Exception:
-                pass
-            else:
-                num_rows_hospital_insert += 1
-
-
-    if num_rows_hospital_insert == 0: 
-        with conn.transaction():
-            for index, row in df.iterrows():
-                if_invalid = False
-                hospital_dict = {'hospital_pk': row['hospital_pk'],
-                                'hospital_name': row['hospital_name'],
-                                'longitude': row['longitude'],
-                                'latitude': row['latitude'],
-                                'address': row['address'],
-                                'city': row['city'],
-                                'fips_code': row['fips_code'],
-                                'zip': row['zip']}
-                nonnull_hospital = {}
-                for key in hospital_dict.keys():
-                    if hospital_dict[key] is not None:
-                        nonnull_hospital[key] = hospital_dict[key]
-
-                # Check if the values are valid
-                for key in nonnull_hospital.keys():
-                    if key == 'longitude':
-                        if not isfloat(nonnull_hospital[key]) or\
-                                float(nonnull_hospital[key]) <= -180 or\
-                                float(nonnull_hospital[key]) >= 180:
-                            invalid_hospital_id.append(row["hospital_pk"])
-                            if_invalid = True
-                            break
-                    elif key == 'latitude':
-                        if not isfloat(nonnull_hospital[key]) or\
-                                float(nonnull_hospital[key]) <= -90 or\
-                                float(nonnull_hospital[key]) >= 90:
-                            invalid_hospital_id.append(row["hospital_pk"])
-                            if_invalid = True
-                            break
-                    elif key == "zip":
-                        if not isint(nonnull_hospital[key]):
-                            invalid_hospital_id.append(row["hospital_pk"])
-                            if_invalid = True
-                            break
-
-                if if_invalid:
-                    print("Row invalid, hospital_pk:", row['hospital_pk'])
-                    continue
-                
+                pk_num = 0
+            if pk_num == 0:
                 try:
-                        hospital_update = "UPDATE Hospital SET "
-                        for key in list(nonnull_hospital.keys()):
-                            if key in ["city", "fips_code"]:
-                                key_update = key + " = '" +\
-                                            str(nonnull_hospital[key]) + "'"
-                            elif key in ["hospital_name", "address", "city"]:
-                                if "'" in nonnull_hospital[key]:
-                                    name = nonnull_hospital[key]
-                                    nonnull_hospital[key] = name.split("'")[0] +\
-                                        "''" + name.split("'")[1]
-                                    key_update = key + " = '" +\
-                                        str(nonnull_hospital[key]) + "'"
-                                else:
+                    insert_col = ', '.join(nonnull_hospital.keys())
+                    hospital_insert = "INSERT INTO Hospital (" +\
+                                    insert_col + ")" +\
+                                    "VALUES ("
+                    for key in list(nonnull_hospital.keys()):
+                        if key in ["hospital_pk", "hospital_name",
+                                "address", "city", "fips_code"]:
+                            if key in ["hospital_name",
+                                    "address", "city"] and\
+                                    "'" in nonnull_hospital[key]:
+                                name = nonnull_hospital[key]
+                                nonnull_hospital[key] = name.split("'")[0] +\
+                                    "''" + name.split("'")[1]
+
+                            key_insert = "'" + str(nonnull_hospital[key]) + "'"
+
+                        else:
+                            key_insert = str(nonnull_hospital[key])
+                        hospital_insert += key_insert
+                        if key != list(nonnull_hospital.keys())[-1]:
+                            hospital_insert += ", "
+                        else:
+                            hospital_insert += ");"
+                    cur.execute(hospital_insert)
+                    insert_id.append(row['hospital_pk'])
+                except Exception:
+                    pass
+                else:
+                    num_rows_hospital_insert += 1
+    print("Info about", num_rows_hospital_insert, "hospitals are inserted.")
+
+
+    with conn.transaction():
+            for index, row in df.iterrows():
+                if row['hospital_pk'] not in insert_id and row['hospital_pk'] not in invalid_hospital_id:
+                    if_invalid = False
+                    hospital_dict = {'hospital_pk': row['hospital_pk'],
+                                    'hospital_name': row['hospital_name'],
+                                    'longitude': row['longitude'],
+                                    'latitude': row['latitude'],
+                                    'address': row['address'],
+                                    'city': row['city'],
+                                    'fips_code': row['fips_code'],
+                                    'zip': row['zip']}
+                    nonnull_hospital = {}
+                    for key in hospital_dict.keys():
+                        if hospital_dict[key] is not None:
+                            nonnull_hospital[key] = hospital_dict[key]
+
+                    # Check if the values are valid
+                    for key in nonnull_hospital.keys():
+                        if key == 'longitude':
+                            if not isfloat(nonnull_hospital[key]) or\
+                                    float(nonnull_hospital[key]) <= -180 or\
+                                    float(nonnull_hospital[key]) >= 180:
+                                invalid_hospital_id.append(row["hospital_pk"])
+                                if_invalid = True
+                                break
+                        elif key == 'latitude':
+                            if not isfloat(nonnull_hospital[key]) or\
+                                    float(nonnull_hospital[key]) <= -90 or\
+                                    float(nonnull_hospital[key]) >= 90:
+                                invalid_hospital_id.append(row["hospital_pk"])
+                                if_invalid = True
+                                break
+                        elif key == "zip":
+                            if not isint(nonnull_hospital[key]):
+                                invalid_hospital_id.append(row["hospital_pk"])
+                                if_invalid = True
+                                break
+
+                    if if_invalid:
+                        print("Row invalid, hospital_pk:", row['hospital_pk'])
+                        continue
+                    
+                    try:
+                            hospital_update = "UPDATE Hospital SET "
+                            for key in list(nonnull_hospital.keys()):
+                                if key in ["city", "fips_code"]:
                                     key_update = key + " = '" +\
                                                 str(nonnull_hospital[key]) + "'"
-                            elif key != "hospital_pk":
-                                key_update = key + " = " +\
-                                            str(nonnull_hospital[key])
-                            else:
-                                key_update = ""
-                            hospital_update += key_update
-                            if key != list(nonnull_hospital.keys())[-1]\
-                            and key != "hospital_pk":
-                                hospital_update += ", "
-                            if key == "hospital_pk":
-                                pk_update = " WHERE hospital_pk = '" +\
-                                            str(nonnull_hospital[key]) + "';"
-                        hospital_update += pk_update
-                        cur.execute(hospital_update)
-                except Exception as e:
-                        print("insert and update failed:", e)
-                else:
-                        num_rows_hospital_update += 1
+                                elif key in ["hospital_name", "address", "city"]:
+                                    if "'" in nonnull_hospital[key]:
+                                        name = nonnull_hospital[key]
+                                        nonnull_hospital[key] = name.split("'")[0] +\
+                                            "''" + name.split("'")[1]
+                                        key_update = key + " = '" +\
+                                            str(nonnull_hospital[key]) + "'"
+                                    else:
+                                        key_update = key + " = '" +\
+                                                    str(nonnull_hospital[key]) + "'"
+                                elif key != "hospital_pk":
+                                    key_update = key + " = " +\
+                                                str(nonnull_hospital[key])
+                                else:
+                                    key_update = ""
+                                hospital_update += key_update
+                                if key != list(nonnull_hospital.keys())[-1]\
+                                and key != "hospital_pk":
+                                    hospital_update += ", "
+                                if key == "hospital_pk":
+                                    pk_update = " WHERE hospital_pk = '" +\
+                                                str(nonnull_hospital[key]) + "';"
+                            hospital_update += pk_update
+                            cur.execute(hospital_update)
+                    except Exception as e:
+                            print("insert and update failed:", e)
+                    else:
+                            num_rows_hospital_update += 1
 
-    print("Info about", num_rows_hospital_insert, "hospitals are inserted.")
     print("Info about", num_rows_hospital_update, "hospitals are updated.")
 
     invalid_beds_id = []
