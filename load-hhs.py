@@ -2,7 +2,6 @@ import pandas as pd
 import sys
 import psycopg
 import credentials
-import datetime
 
 
 
@@ -31,7 +30,11 @@ def data_handle(df):
     df.replace(replacement, inplace=True)
 
     # Parsing dates
-    df['collection_week'] = pd.to_datetime(df['collection_week'], format='%m/%d/%y')
+
+    try:
+        df['collection_week'] = pd.to_datetime(df['collection_week'], format='%m/%d/%y')
+    except Exception:
+        pass
 
     # Converting points into longitude and latitude
     df['geocoded_hospital_address'].fillna("POINT (NA NA)", inplace=True)
@@ -195,7 +198,7 @@ def run_sql(df):
                     try:
                             hospital_update = "UPDATE Hospital SET "
                             for key in list(nonnull_hospital.keys()):
-                                if key in ["city", "fips_code"]:
+                                if key in ["fips_code"]:
                                     key_update = key + " = '" +\
                                                 str(nonnull_hospital[key]) + "'"
                                 elif key in ["hospital_name", "address", "city"]:
