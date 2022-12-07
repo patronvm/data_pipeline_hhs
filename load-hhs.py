@@ -26,7 +26,7 @@ def isint(num):
 
 def data_handle(df):
     # Converting NA
-    replacement = {-999999: None}
+    replacement = {-999999: None, '-999999': None}
     df.replace(replacement, inplace=True)
 
     # Parsing dates
