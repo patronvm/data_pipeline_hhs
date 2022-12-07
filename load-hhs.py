@@ -304,7 +304,7 @@ path_name = sys.argv[1]
 df = pd.read_csv(path_name)
 df = data_handle(df)
 # SQL
-invalid_hospital_id, invalid_beds_id = run_sql(df[0:2])
+invalid_hospital_id, invalid_beds_id = run_sql(df)
 # Save invalid rows to a separate CSV file
 invalid_rows = pd.DataFrame()
 for id in invalid_hospital_id:
