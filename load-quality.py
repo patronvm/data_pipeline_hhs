@@ -39,47 +39,60 @@ def run_sql(df):
 
     num_rows_hospital_insert = 0
     num_rows_hospital_update = 0
+    insert_id = []
     with conn.transaction():
         for index, row in df.iterrows():
             try:
-                cur.execute("SAVEPOINT save1")
-                with conn.transaction():
-                    cur.execute("INSERT INTO Hospital (hospital_pk,\
-                                type, ownership, emergency_services,\
-                                county_name, state)"
-                                "VALUES ('{0}', '{1}', '{2}',\
-                                '{3}', '{4}', '{5}')".format
-                                (row['Facility ID'],
-                                 row['Hospital Type'],
-                                 row['Hospital Ownership'],
-                                 row['Emergency Services'],
-                                 row['County Name'],
-                                 row['State']))
+                select_sql = "SELECT COUNT(*) FROM Hospital WHERE hospital_pk = '{}'".format(row['Facility ID'])
+                cur.execute(select_sql)
+                for r in cur:
+                    pk_exist = r
+                r = cur.fetchone()
+                pk_num = pk_exist[0]
             except Exception:
-                pass
-            else:
-                num_rows_hospital_insert += 1
-    if num_rows_hospital_insert == 0:
-        with conn.transaction():
-            for index, row in df.iterrows():
+                pk_num = 0
+
+            if pk_num == 0:
                 try:
-                        cur.execute("UPDATE Hospital "
-                                    "SET type = '{0}',\
-                                    ownership = '{1}',\
-                                    emergency_services = '{2}',\
-                                    county_name = '{3}',\
-                                    state = '{4}'"
-                                    "WHERE hospital_pk = '{5}'".format
-                                    (row['Hospital Type'],
+                    cur.execute("SAVEPOINT save1")
+                    with conn.transaction():
+                        cur.execute("INSERT INTO Hospital (hospital_pk,\
+                                    type, ownership, emergency_services,\
+                                    county_name, state)"
+                                    "VALUES ('{0}', '{1}', '{2}',\
+                                    '{3}', '{4}', '{5}')".format
+                                    (row['Facility ID'],
+                                    row['Hospital Type'],
                                     row['Hospital Ownership'],
                                     row['Emergency Services'],
                                     row['County Name'],
-                                    row['State'],
-                                    row['Facility ID']))
-                except Exception as e:
-                        print("insert and update failed:", e)
+                                    row['State']))
+                        insert_id.append(row['Facility ID'])
+                except Exception:
+                    pass
                 else:
-                        num_rows_hospital_update += 1
+                    num_rows_hospital_insert += 1
+    with conn.transaction():
+            for index, row in df.iterrows():
+                if row['Facility ID'] not in insert_id:
+                    try:
+                            cur.execute("UPDATE Hospital "
+                                        "SET type = '{0}',\
+                                        ownership = '{1}',\
+                                        emergency_services = '{2}',\
+                                        county_name = '{3}',\
+                                        state = '{4}'"
+                                        "WHERE hospital_pk = '{5}'".format
+                                        (row['Hospital Type'],
+                                        row['Hospital Ownership'],
+                                        row['Emergency Services'],
+                                        row['County Name'],
+                                        row['State'],
+                                        row['Facility ID']))
+                    except Exception as e:
+                            print("insert and update failed:", e)
+                    else:
+                            num_rows_hospital_update += 1
     print("Info about", num_rows_hospital_insert, "hospitals are inserted.")
     print("Info about", num_rows_hospital_update, "hospitals are updated.")
 
