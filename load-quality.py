@@ -56,26 +56,30 @@ def run_sql(df):
                                  row['County Name'],
                                  row['State']))
             except Exception:
-                try:
-                    cur.execute("UPDATE Hospital "
-                                "SET type = '{0}',\
-                                 ownership = '{1}',\
-                                 emergency_services = '{2}',\
-                                 county_name = '{3}',\
-                                 state = '{4}'"
-                                "WHERE hospital_pk = '{5}'".format
-                                (row['Hospital Type'],
-                                 row['Hospital Ownership'],
-                                 row['Emergency Services'],
-                                 row['County Name'],
-                                 row['State'],
-                                 row['Facility ID']))
-                except Exception as e:
-                    print("insert and update failed:", e)
-                else:
-                    num_rows_hospital_update += 1
+                pass
             else:
                 num_rows_hospital_insert += 1
+    if num_rows_hospital_insert == 0:
+        with conn.transaction():
+            for index, row in df.iterrows():
+                try:
+                        cur.execute("UPDATE Hospital "
+                                    "SET type = '{0}',\
+                                    ownership = '{1}',\
+                                    emergency_services = '{2}',\
+                                    county_name = '{3}',\
+                                    state = '{4}'"
+                                    "WHERE hospital_pk = '{5}'".format
+                                    (row['Hospital Type'],
+                                    row['Hospital Ownership'],
+                                    row['Emergency Services'],
+                                    row['County Name'],
+                                    row['State'],
+                                    row['Facility ID']))
+                except Exception as e:
+                        print("insert and update failed:", e)
+                else:
+                        num_rows_hospital_update += 1
     print("Info about", num_rows_hospital_insert, "hospitals are inserted.")
     print("Info about", num_rows_hospital_update, "hospitals are updated.")
 
@@ -162,7 +166,4 @@ for id in invalid_rating_id:
     row = df[df["Facility ID"] == id]
     invalid_rows = pd.concat([invalid_rows, row])
 
-print(invalid_rating_id)
-print(invalid_rows)
-
-# invalid_rows.to_csv("invalid_rows_quality.csv")
+invalid_rows.to_csv("invalid_rows_quality.csv")
