@@ -71,8 +71,8 @@ ON H.hospital_pk = B.hospital \
 GROUP BY state;"
 
 # 6
-report6 = "SELECT hospital_name, longitude, latitude, address, city, state, changes \
-FROM ((SELECT hospital_name, longitude, latitude, address, city, state, hospital_pk \
+report6 = "SELECT hospital_name, city, state, changes \
+FROM ((SELECT hospital_name, city, state, hospital_pk \
     FROM Hospital) AS H \
 JOIN (SELECT ABS(new - old) AS changes, O.hospital \
     FROM (SELECT (inpatient_beds_used_covid_7_day_avg) AS new, hospital FROM Hospital_beds \
@@ -82,17 +82,9 @@ JOIN (SELECT ABS(new - old) AS changes, O.hospital \
             WHERE collection_week < (SELECT MAX(collection_week) FROM Hospital_beds))) AS O \
         ON N.hospital = O.hospital) AS Y \
 ON H.hospital_pk = Y.hospital) AS X \
-WHERE changes = (SELECT MAX(changes) FROM \
-    ((SELECT hospital_name, longitude, latitude, address, city, state, hospital_pk \
-    FROM Hospital) AS H \
-JOIN (SELECT ABS(new - old) AS changes, O.hospital \
-    FROM (SELECT (inpatient_beds_used_covid_7_day_avg) AS new, hospital FROM Hospital_beds \
-        WHERE collection_week = (SELECT MAX(collection_week) FROM Hospital_beds)) AS N \
-        JOIN (SELECT (inpatient_beds_used_covid_7_day_avg) AS old, hospital FROM Hospital_beds \
-        WHERE collection_week = (SELECT MAX(collection_week) FROM Hospital_beds \
-            WHERE collection_week < (SELECT MAX(collection_week) FROM Hospital_beds))) AS O \
-        ON N.hospital = O.hospital) AS Y \
-ON H.hospital_pk = Y.hospital) AS X);"
+WHERE changes IS NOT NULL \
+ORDER BY changes DESC \
+LIMIT 10 "
 
 # 7
 report7 = "SELECT (used/total) AS utilization, state, collection_week \
@@ -147,14 +139,24 @@ def run_sql():
     for row in cur:
         at, pt, au, pu, tu, cu, week = row
         df0 = pd.DataFrame([[week, at, pt, au, pu, tu, cu]],
-            columns=['Week', 'Number of adult beds available',\
-            'Number of pediatric beds available',\
+            columns=['Week', 'Number of adult beds available', \
+            'Number of pediatric beds available', \
             'Number used (adult)',
             'Number used (pediatric)',
             'Total number used',
             'Number used by patients with COVID'])
         df2 = pd.concat([df2, df0], ignore_index=True)
     row = cur.fetchall()
+
+    df2_used = df2[['Week', 'Number used (adult)',
+            'Number used (pediatric)',
+            'Total number used']]
+
+    df2_available = df2[['Week',
+            'Number of adult beds available',
+            'Number of pediatric beds available']]
+
+    df2_covid = df2[['Week','Number used by patients with COVID']]
 
     # 3
     df3 = pd.DataFrame(columns=['Total number used',
@@ -206,21 +208,15 @@ def run_sql():
 
     # 6
     df6 = pd.DataFrame(columns=['Hospital name',
-            'Longitude',
-            'Latitude',
-            'Address',
             'City',
             'State',
             'Changes in COVID cases in the last week'])
 
     cur.execute(report6)
     for row in cur:
-        name, lo, la, ad, city, state, changes = row
-        df0 = pd.DataFrame([[name, lo, la, ad, city, state, changes]],
+        name, city, state, changes = row
+        df0 = pd.DataFrame([[name, city, state, changes]],
             columns=['Hospital name',
-            'Longitude',
-            'Latitude',
-            'Address',
             'City',
             'State',
             'Changes in COVID cases in the last week'])
@@ -247,28 +243,45 @@ def run_sql():
     conn.commit()
     conn.close()
 
-    return df1, df2, df3, df4, df5, df6, df7
+    return df1, df2_available, df2_used, df2_covid, df3, df4, df5, df6, df7
 
 date = sys.argv[1]
-df1, df2, df3, df4, df5, df6, df7 = run_sql()
+df1, df2_available, df2_used, df2_covid, df3, df4, df5, df6, df7 = run_sql()
 
 def Q1():
-    st.title("Analysis 1")
-    "A summary of how many hospital records were loaded in the most recent week,"
-    "and how that compares to previous weeks"
+    st.title("Updated Hospital Records")
+
+    text= str(df1["Number of hospital records loaded"][0]) + " hospitals " +\
+    "records were loaded in the most recent week (" +str(df1["Load Week"][0])+\
+    ") compared to " + str(df1["Number of hospital records loaded"][1]) + " hospitals from " +\
+    str(df1["Load Week"][1])
+    text
     st.dataframe(df1)
 
 def Q2():
-    st.title("Analysis 2")
-    "A table summarizing the number of adult and pediatric beds available this week,"
-    "the number used, and the number used by patients with COVID,"
-    "compared to the 4 most recent weeks"
-    st.dataframe(df2)
+    st.title("Beds Use and Availability")
+
+    "Table below summarizes beds availability for current week"
+    ""
+    st.dataframe(df2_available)
+
+    "Table below summarizes beds used for current week"
+    ""
+    st.dataframe(df2_used)
+
+    "Table below summarizes beds occupied by patients with COVID"
+    ""
+    st.dataframe(df2_covid)
 
 def Q3():
     st.title("Analysis 3")
-    "A graph and a table summarizing the fraction of beds currently in use by hospital quality rating"
-    st.bar_chart(data=df3, x="Rating", y="Fraction")
+    "The graph and table below summarizes the proportion of beds currently in use by hospital quality rating"
+    fig_bar = plt.figure()
+    plt.bar(df3["Rating"], df3["Fraction"])
+    plt.title("Proportion of Beds Used vs Hospital Ratings")
+    plt.xlabel('Rating') 
+    plt.ylabel('Fraction')
+    st.pyplot(fig_bar)
     st.dataframe(df3)
 
 def Q4():
@@ -303,7 +316,7 @@ def Q5():
 
 def Q6():
     st.title("Analysis 6")
-    "A table of the hospitals with the largest changes in COVID cases in the last week"
+    "A table of the hospitals with the top 10 changes in COVID cases in the last week"
     st.dataframe(df6)
 
 def Q7():
