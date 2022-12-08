@@ -6,6 +6,7 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+import altair as alt
 
 # 1
 report1 = "SELECT COUNT(*), collection_week FROM Hospital_beds \
@@ -56,11 +57,12 @@ SUM(all_pediatric_inpatient_bed_occupied_7_day_avg) AS all_used, \
 SUM(inpatient_beds_used_covid_7_day_avg) AS used_COVID, \
 collection_week \
 FROM Hospital_beds \
-GROUP BY collection_week;"
+GROUP BY collection_week \
+ORDER BY collection_week;"
 
 
 # 5
-report5 = "SELECT SUM(inpatient_beds_used_covid_7_day_avg), state \
+report5 = "SELECT SUM(inpatient_beds_used_covid_7_day_avg) * 7, state \
 FROM \
 (SELECT state, inpatient_beds_used_covid_7_day_avg \
 FROM (SELECT hospital_pk, state FROM Hospital) AS H \
@@ -259,7 +261,7 @@ def Q1():
     st.dataframe(df1)
 
 def Q2():
-    st.title("Beds Use and Availability")
+    st.title("Beds Used and Availability")
 
     "Table below summarizes beds availability for current week"
     ""
@@ -274,7 +276,7 @@ def Q2():
     st.dataframe(df2_covid)
 
 def Q3():
-    st.title("Analysis 3")
+    st.title("High Quality vs Low Quality Hospitals Beds Comparison")
     "The graph and table below summarizes the proportion of beds currently in use by hospital quality rating"
     fig_bar = plt.figure()
     plt.bar(df3["Rating"], df3["Fraction"])
@@ -282,36 +284,46 @@ def Q3():
     plt.xlabel('Rating') 
     plt.ylabel('Fraction')
     st.pyplot(fig_bar)
+    ""
+    "Proportion of Beds Available by Hospital Rating"
     st.dataframe(df3)
 
 def Q4():
-    st.title("Analysis 4")
+    st.title("Bed Usage by Week Split by Case")
     "A plot of the total number of hospital beds used per week, over all time, split into all cases and COVID cases"
     fig = plt.figure()
     x = df4["Week"]
     y1 = df4["Number of hospital beds used (all cases)"]
     y2 = df4["Number of hospital beds used (COVID cases)"]
-    plt.scatter(x, y1, label="Number of hospital beds used (all cases)")
-    plt.scatter(x, y2, label="Number of hospital beds used (COVID cases)")
+    x, y2 = zip(*sorted(zip(x, y2)))
+    plt.scatter(x, y1)
+    plt.plot(x, y1, label = "Number of hospital beds used (all cases)")
+    plt.scatter(x, y2)
+    plt.plot(x, y2, label="Number of hospital beds used (COVID cases)")
     plt.xticks(rotation=-30)
     plt.xlabel("Week")
-    plt.legend(("Number of hospital beds used (all cases)",
-        "Number of hospital beds used (COVID cases)"),
-        loc=7)
+    plt.ylabel("Beds Used")
+    plt.title("Beds Used vs Time by Case")
+    plt.legend(loc=7)
     st.pyplot(fig)
 
     
 def Q5():
-    st.title("Analysis 5")
+    st.title("COVID-19 Cases by State")
     "A map showing the number of COVID cases by state"
+    "From " + str(df4["Week"][0]) + " to " + str(df4["Week"].iloc[-1])
     fig = go.Figure(data=go.Choropleth(
         locations=df5["State"],
         z=df5["Number of COVID cases"].astype(float),
         locationmode="USA-states",
         colorscale="Blues"
     ))
-    fig.update_layout(geo_scope="usa")
+    fig.update_layout(geo_scope="usa", title="COVID Cases by State")
+    fig.update_layout(legend_title="Legend")
     st.plotly_chart(fig)
+    #df4['Week'] = pd.to_datetime(df4['Week'])
+    #df4 = df4.sort_values(by=['Week'])
+    st.dataframe(df4)
 
 
 def Q6():
