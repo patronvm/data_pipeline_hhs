@@ -333,7 +333,8 @@ def Q5():
         locations=df5["State"],
         z=df5["Number of COVID cases"].astype(float),
         locationmode="USA-states",
-        colorscale="Blues"
+        colorscale="Blues",
+        colorbar_title="Number of COVID cases"
     ))
     fig.update_layout(geo_scope="usa", title="COVID Cases by State")
     fig.update_layout(legend_title="Legend")
