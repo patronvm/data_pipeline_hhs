@@ -409,23 +409,28 @@ def Q7():
 def layout():
     st.sidebar.write("Partridges")
     report_title = "Data Pipeline Report: " + date
-    selectbox = st.sidebar.radio(report_title, ("Analysis 1", "Analysis 2",
-                                                "Analysis 3", "Analysis 4",
-                                                "Analysis 5", "Analysis 6",
-                                                "Analysis 7"))
-    if selectbox == "Analysis 1":
+    selectbox = st.sidebar.radio(report_title, ("Updated Hospital Records",
+                                                "Beds Used and Availability",
+                                                "High Quality vs Low Quality "
+                                                "Hospitals Beds Comparison",
+                                                "Bed Usage by Week "
+                                                "Split by Case",
+                                                "COVID-19 Cases by State",
+                                                "Biggest Hospital Changes",
+                                                "Hospital utilization graph"))
+    if selectbox == "Updated Hospital Records":
         Q1()
-    elif selectbox == "Analysis 2":
+    elif selectbox == "Beds Used and Availability":
         Q2()
-    elif selectbox == "Analysis 3":
+    elif selectbox == "High Quality vs Low Quality Hospitals Beds Comparison":
         Q3()
-    elif selectbox == "Analysis 4":
+    elif selectbox == "Bed Usage by Week Split by Case":
         Q4()
-    elif selectbox == "Analysis 5":
+    elif selectbox == "COVID-19 Cases by State":
         Q5()
-    elif selectbox == "Analysis 6":
+    elif selectbox == "Biggest Hospital Changes":
         Q6()
-    elif selectbox == "Analysis 7":
+    elif selectbox == "Hospital utilization graph":
         Q7()
 
 
