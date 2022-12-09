@@ -368,7 +368,7 @@ def Q5():
 # Table of the top 10 changes in covid cases
 
 def Q6():
-    st.title("Analysis 6")
+    st.title("Biggest Hospital Changes")
     "A table of the hospitals with the top 10 changes in COVID cases in "
     "the last week"
     st.dataframe(df6)
