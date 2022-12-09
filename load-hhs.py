@@ -4,7 +4,6 @@ import psycopg
 import credentials
 
 
-
 def isfloat(num):
     """Justify if the given number is a float"""
     try:
@@ -32,7 +31,8 @@ def data_handle(df):
     # Parsing dates
 
     try:
-        df['collection_week'] = pd.to_datetime(df['collection_week'], format='%m/%d/%y')
+        df['collection_week'] = pd.to_datetime(df['collection_week'],
+                                               format='%m/%d/%y')
     except Exception:
         pass
 
@@ -150,7 +150,6 @@ def run_sql(df):
                 else:
                     num_rows_hospital_insert += 1
     print("Info about", num_rows_hospital_insert, "hospitals are inserted.")
-
 
     with conn.transaction():
             for index, row in df.iterrows():

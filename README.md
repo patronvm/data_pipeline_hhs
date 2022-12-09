@@ -41,4 +41,23 @@ Data:
 
 This folder has data that is ready to be used for hospital information.
 
+report.sql:
+
+This sql code is how the inserted data is brought into python for easy
+data manipulation and insertion into pandas dataframes.
+
+Dashboard.py:
+
+This module uses streamlit to take the data that is inserted into sql
+and uses it to creates various pandas dataframes to conduct various analyses.
+First SQL code is written (from the report.sql module), then various pandas
+dataframes are created, then the questions are split by streamlit tabs
+to see each individual analysis. Analysis ranges from hospital utilization, to covid cases,
+to data insertion records, and presents the information in various plots and tables. 
+Some plots are interactive, and some are static for readability.
+
+weekly-report.py
+
+A user just needs to run this module followed by a data file name
+to get the dashboard to work. 
 

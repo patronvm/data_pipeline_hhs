@@ -5,14 +5,14 @@ import credentials
 import sys
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-# from datetime import timedelta
 
-# 1
+
+# SQL for first analysis
 report1 = "SELECT COUNT(*), collection_week FROM Hospital_beds \
 GROUP BY collection_week \
 ORDER BY collection_week DESC;"
 
-# 2
+# SQL for second analysis
 report2 = "SELECT SUM(all_adult_hospital_beds_7_day_avg) AS total_adult, \
 SUM(all_pediatric_inpatient_beds_7_day_avg) AS total_pediatric, \
 SUM(all_adult_hospital_inpatient_bed_occupied_7_day_coverage) AS used_adult, \
@@ -26,7 +26,7 @@ GROUP BY collection_week \
 ORDER BY collection_week DESC \
 LIMIT 5;"
 
-# 3
+# SQL for 3rd analysis
 report3 = "SELECT used, total, (used / total) AS fraction, rating \
 FROM \
 (SELECT SUM(all_adult_hospital_inpatient_bed_occupied_7_day_coverage) + \
@@ -54,7 +54,7 @@ GROUP BY rating \
 ORDER BY rating \
 ) AS Y;"
 
-# 4
+# SQL for 4th analysis
 report4 = "SELECT \
     SUM(all_adult_hospital_inpatient_bed_occupied_7_day_coverage) + \
     SUM(all_pediatric_inpatient_bed_occupied_7_day_avg) AS all_used, \
@@ -65,7 +65,7 @@ report4 = "SELECT \
     ORDER BY collection_week;"
 
 
-# 5
+# SQL for 5th analysis
 report5 = "SELECT SUM(inpatient_beds_used_covid_7_day_avg) * 7, state \
 FROM \
 (SELECT state, inpatient_beds_used_covid_7_day_avg \
@@ -76,7 +76,7 @@ ON H.hospital_pk = B.hospital \
 ) AS X \
 GROUP BY state;"
 
-# 6
+# SQL for 6th analysis
 report6 = "SELECT hospital_name, city, state, changes \
 FROM ((SELECT hospital_name, city, state, hospital_pk \
     FROM Hospital) AS H \
@@ -97,7 +97,7 @@ WHERE changes IS NOT NULL \
 ORDER BY changes DESC \
 LIMIT 10 "
 
-# 7
+# SQL for 7th analysis
 report7 = "SELECT (used/ (used + available)) AS utilization,\
                    state, collection_week \
 FROM \
@@ -118,7 +118,11 @@ GROUP BY state, collection_week) AS X \
 ORDER BY state;"
 
 
+# Runs postgresql with login info, uses
+# sql code to create graphs and tables in dashboard
+
 def run_sql():
+    # Connects to the server
     conn = psycopg.connect(
         host="sculptor.stat.cmu.edu",
         dbname=credentials.DB_USER,
@@ -127,10 +131,12 @@ def run_sql():
     )
     cur = conn.cursor()
 
-    # 1
+    # Dataframe for the first analysis
     df1 = pd.DataFrame(columns=['Number of hospital records loaded',
                                 'Load Week'])
     cur.execute(report1)
+
+    # Takes inserted data from SQL and creates pandas dataframe
     for row in cur:
         load_num, load_week = row
         df0 = pd.DataFrame([[load_num, load_week]],
@@ -139,7 +145,7 @@ def run_sql():
         df1 = pd.concat([df1, df0], ignore_index=True)
     row = cur.fetchall()
 
-    # 2
+    # DataFrame for second analysis, bed use
     df2 = pd.DataFrame(columns=['Week',
                                 'Number of adult beds available',
                                 'Number of pediatric beds available',
@@ -149,6 +155,8 @@ def run_sql():
                                 'Number used by patients with COVID'])
 
     cur.execute(report2)
+
+    # Placeholder variable names for loop to add data from SQL
     for row in cur:
         at, pt, au, pu, tu, cu, week = row
         df0 = pd.DataFrame([[week, at, pt, au, pu, tu, cu]],
@@ -160,24 +168,25 @@ def run_sql():
                                     'Number used by patients with COVID'])
         df2 = pd.concat([df2, df0], ignore_index=True)
     row = cur.fetchall()
-
+    # Dataframe for used beds
     df2_used = df2[['Week', 'Number used (adult)',
                     'Number used (pediatric)',
                     'Total number used']]
-
+    # Dataframe for available beds
     df2_available = df2[['Week',
                          'Number of adult beds available',
                          'Number of pediatric beds available']]
-
+    # Dataframe for covid patients
     df2_covid = df2[['Week', 'Number used by patients with COVID']]
 
-    # 3
+    # DF for analysis 3
     df3 = pd.DataFrame(columns=['Total number used',
                                 'Total number available',
                                 'Fraction',
                                 'Rating'])
 
     cur.execute(report3)
+    # SQL data to DF
     for row in cur:
         tu, tt, frac, rate = row
         df0 = pd.DataFrame([[tu, tt, frac, rate]],
@@ -189,12 +198,13 @@ def run_sql():
     row = cur.fetchall()
     df3.dropna(inplace=True)
 
-    # 4
+    # DF for analysis 4
     df4 = pd.DataFrame(columns=['Number of hospital beds used (all cases)',
                                 'Number of hospital beds used (COVID cases)',
                                 'Week'])
 
     cur.execute(report4)
+    # SQL data to DF
     for row in cur:
         all, covid, week = row
         df0 = pd.DataFrame(
@@ -205,10 +215,11 @@ def run_sql():
         df4 = pd.concat([df4, df0], ignore_index=True)
     row = cur.fetchall()
 
-    # 5
+    # DF for analysis 5
     df5 = pd.DataFrame(columns=['Number of COVID cases', 'State'])
 
     cur.execute(report5)
+    # SQL data to dataframe
     for row in cur:
         case, state = row
         df0 = pd.DataFrame([[case, state]],
@@ -217,7 +228,7 @@ def run_sql():
     row = cur.fetchall()
     df5.dropna(inplace=True)
 
-    # 6
+    # DF for analysis 6
     df6 = pd.DataFrame(columns=['Hospital name',
                                 'City',
                                 'State',
@@ -234,7 +245,7 @@ def run_sql():
         df6 = pd.concat([df6, df0], ignore_index=True)
     row = cur.fetchall()
 
-    # 7
+    # DF for analysis 7
     df7 = pd.DataFrame(columns=['Hospital utilization',
                                 'State',
                                 'Week'])
@@ -252,13 +263,15 @@ def run_sql():
 
     conn.commit()
     conn.close()
-
+    # Returns the DF's necessary for dashboard
     return df1, df2_available, df2_used, df2_covid, df3, df4, df5, df6, df7
 
 
 date = sys.argv[1]
 df1, df2_available, df2_used, df2_covid, df3, df4, df5, df6, df7 = run_sql()
 
+
+# Information about the updated hospital records in table format
 
 def Q1():
     st.title("Updated Hospital Records")
@@ -272,6 +285,8 @@ def Q1():
     text
     st.dataframe(df1)
 
+
+# Information about bed use split into 3 different tables
 
 def Q2():
     st.title("Beds Used and Availability")
@@ -289,6 +304,8 @@ def Q2():
     st.dataframe(df2_covid)
 
 
+# Plotting info of bed use by hospital quality with bar chart
+
 def Q3():
     st.title("High Quality vs Low Quality Hospitals Beds Comparison")
     "The graph and table below summarizes the proportion of beds currently "
@@ -303,6 +320,8 @@ def Q3():
     "Proportion of Beds Available by Hospital Rating"
     st.dataframe(df3)
 
+
+# Line graph with individual points of bed use over time
 
 def Q4():
     st.title("Bed Usage by Week Split by Case")
@@ -325,6 +344,8 @@ def Q4():
     st.pyplot(fig)
 
 
+# US interactive map of covid cases with table for more info
+
 def Q5():
     st.title("COVID-19 Cases by State")
     "A map showing the number of COVID cases by state"
@@ -344,12 +365,16 @@ def Q5():
     st.dataframe(df4)
 
 
+# Table of the top 10 changes in covid cases
+
 def Q6():
     st.title("Analysis 6")
     "A table of the hospitals with the top 10 changes in COVID cases in "
     "the last week"
     st.dataframe(df6)
 
+
+# Hospital utilization by state
 
 def Q7():
     st.title("Hospital utilization graph")
@@ -380,6 +405,7 @@ def Q7():
     st.dataframe(df7)
 
 
+# Layout of the dashboard for easy navigation
 def layout():
     st.sidebar.write("Partridges")
     report_title = "Data Pipeline Report: " + date
